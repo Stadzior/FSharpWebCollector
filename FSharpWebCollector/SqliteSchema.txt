@@ -1,0 +1,3 @@
+﻿.\sqlite3.exe MyIndexedWebDb.db
+create table sites (Id integer PRIMARY KEY, PageRank real NOT NULL);
+create table words (Id integer PRIMARY KEY, Word text NOT NULL, WordCount integer Check(WordCount>0), siteId integer, FOREIGN KEY(siteId) REFERENCES sites(Id));
