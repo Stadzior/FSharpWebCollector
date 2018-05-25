@@ -10,6 +10,9 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
 
-  <ItemGroup />
+  <ItemGroup>
+    <PackageReference Include="SQLProvider" Version="1.1.42" />
+    <PackageReference Include="System.Data.SQLite" Version="1.0.108" />
+  </ItemGroup>
 
 </Project>
