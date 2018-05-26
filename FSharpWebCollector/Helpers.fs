@@ -34,8 +34,11 @@ type Microsoft.FSharp.Control.Async with
             else return None
         }
 
+let executeWithTimeout(task : Async<'T>, timeout : int) =
+        Async.AwaitTask(task |> Async.StartAsTask, timeout) |> Async.RunSynchronously
+
 let tryGetBodyFromUrlAsyncWithTimeout(url : string, timeout : int) : string * HtmlNode option =
-     (url, match (Async.AwaitTask(HtmlDocument.AsyncLoad(url) |> Async.StartAsTask, timeout) |> Async.RunSynchronously) with                
+     (url, match executeWithTimeout(HtmlDocument.AsyncLoad(url), timeout) with                
                 | Some x -> x.TryGetBody()
                 | _ -> None)
 
@@ -143,10 +146,18 @@ let getLinksFromNode (includeExternal : bool, includeInternal : bool, urlNodeTup
             x.TryGetAttribute("href")
                 |> Option.map(fun x -> x.Value()))
         |> Seq.filter (fun x ->
-                            let relativeMatch = Regex.IsMatch(x, relativeUrlPattern)
-                            let fullMatch = Regex.Match(fst(urlNodeTuple), fullUrlPattern)
-                            let softMatch = Regex.Match(x, softFullUrlPattern)
-                            (includeExternal || relativeMatch || fullMatch.Value.Equals(softMatch.Value)))
+                            let asyncMatching = executeWithTimeout(async {
+                                let relativeMatch = Regex.IsMatch(x, relativeUrlPattern)
+                                let fullMatch = Regex.Match(fst(urlNodeTuple), fullUrlPattern)
+                                let softMatch = Regex.Match(x, softFullUrlPattern)
+                                return (includeExternal || relativeMatch || fullMatch.Value.Equals(softMatch.Value))
+                            }, 3000)
+                            if (asyncMatching).IsNone then                 
+                                Console.WriteLine(x + " matching timed out.")
+                                false
+                            else
+                                asyncMatching.Value                           
+                                )
         |> Seq.filter (fun x ->
                 (includeInternal ||
                     not(Regex.IsMatch(x, relativeUrlPattern)) ||

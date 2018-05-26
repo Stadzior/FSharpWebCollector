@@ -63,9 +63,7 @@ let main argv =
                                             url) 
                         |> Seq.toArray  
                     
-                seedWords(reachableBodies |> Array.map(fun x -> 
-                                                            let id, _, node = x
-                                                            (id, node)), connection)
+                seedWords(reachableBodies, connection)
                 Console.WriteLine("Finished words seed.")
                 seedPageRanks(reachableBodies, 0.85, depth, connection)                   
                 Console.WriteLine("Finished Page Rank calculations.")

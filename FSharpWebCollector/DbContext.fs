@@ -30,6 +30,6 @@ let insertWord (word : string, wordCount : int, siteId : int, connection : SQLit
     command.ExecuteNonQuery() |> ignore
 
 let updatePageRank (id : int, pageRank : float, connection : SQLiteConnection) =    
-    let query = "update sites set pagerank = " + pageRank.ToString() + " where Id = " + id.ToString() + ";"
+    let query = "update sites set pagerank = " + pageRank.ToString().Replace(",",".") + " where Id = " + id.ToString() + ";"
     let command = new SQLiteCommand(query, connection)
     command.ExecuteNonQuery() |> ignore

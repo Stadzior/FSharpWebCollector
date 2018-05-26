@@ -36,11 +36,13 @@ let seedSites (connection : SQLiteConnection) =
                                         let sitesCommand = new SQLiteCommand(sitesQuery, connection)
                                         sitesCommand.ExecuteNonQuery() |> ignore)
 
-let seedWords (bodies : (int * HtmlNode)[], connection : SQLiteConnection) =
+let seedWords (bodies : (int * string * HtmlNode)[], connection : SQLiteConnection) =
     bodies 
         |> Array.iter(fun x ->
-                            getAllWordsFromNode(snd(x)) 
-                                |> Seq.iter(fun y -> insertWord(fst(y), snd(y), fst(x), connection)))
+                            let id, url, node = x
+                            Console.WriteLine("Attempting to gather words from " + url + "...")
+                            getAllWordsFromNode(node) 
+                                |> Seq.iter(fun y -> insertWord(fst(y), snd(y), id, connection)))
 
 let seedPageRanks (bodies : (int * string * HtmlNode)[], alpha : float, depth : int, connection : SQLiteConnection) =
     bodies 

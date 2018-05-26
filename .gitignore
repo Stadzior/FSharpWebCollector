@@ -331,3 +331,5 @@ ASALocalRun/
 /FSharpWebCollector/*.db
 /FSharpWebCollector/backup.txt
 /FSharpWebCollector/wordsOutput.txt
+/FSharpWebCollector/console.txt
+/FSharpWebCollector/sitesOutput.txt
