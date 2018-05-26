@@ -2,6 +2,9 @@
 
 open System.Data.SQLite
 open System.IO
+open FSharp.Data
+open DbContext
+open Helpers
 
 [<Literal>]
 let sitesListFilePath = __SOURCE_DIRECTORY__ + "\\SitesList.txt"
@@ -28,9 +31,14 @@ let seedSites (connection : SQLiteConnection) =
                     yield sr.ReadLine()
             }    
         sitesToIndex |> Seq.iter(fun x ->                                             
-                                        let sitesQuery = "insert into sites(url) values ('" + x + "');"
+                                        let sitesQuery = "insert into sites (url) values ('" + x + "');"
                                         let sitesCommand = new SQLiteCommand(sitesQuery, connection)
                                         sitesCommand.ExecuteNonQuery() |> ignore)
 
-let seedWords (connection : SQLiteConnection) =
-    true
+let seedWords (bodies : (int * HtmlNode)[], connection : SQLiteConnection) =
+    bodies |> Seq.iter(fun x ->
+                            getAllWordsFromNode(snd(x)) 
+                                |> Seq.iter(fun y -> insertWord(fst(y), snd(y), fst(x), connection)))
+                            
+                            
+                            
