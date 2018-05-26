@@ -2,11 +2,14 @@
 
 open System
 open System.Data.SQLite
+open System.IO
 
 [<Literal>]
 let dbName = "MyIndexedWebDb"
 [<Literal>]
 let dbFilePath = __SOURCE_DIRECTORY__ + "\\" + dbName + ".db"
+[<Literal>]
+let sitesListFilePath = __SOURCE_DIRECTORY__ + "\\SitesList.txt"
 
 [<Literal>]
 let connectionString = "Data Source=" + dbFilePath + ";Version=3;foreign keys=true"   
@@ -33,10 +36,27 @@ let main argv =
     use connection = new SQLiteConnection(connectionString)
     connection.Open()
     if initialMigration(connection) then
-        Console.WriteLine("Initial migration succeed.")
-        Console.ReadKey()
-        1        
+        Console.WriteLine("Initial migration succeed.\n-------------------------------------------------------")
+        let pageRankDepth = 
+                try
+                    System.Convert.ToInt32(argv.[0])              
+                with
+                    | :? FormatException as _ex -> 0 
+        if pageRankDepth > 0 then
+            let sitesToIndex = seq {
+                use sr = new StreamReader(sitesListFilePath)
+                while not sr.EndOfStream do
+                    yield sr.ReadLine()
+            }    
+            sitesToIndex |> Seq.iter(fun x -> Console.WriteLine(x))
+            Console.ReadKey()     
+            1   
+        else
+            Console.WriteLine("Page rank depth needs to be a positive integer.")
+            Console.ReadKey()  
+            0
     else
         Console.WriteLine("Initial migration failed.")
         Console.ReadKey()
         0
+    
