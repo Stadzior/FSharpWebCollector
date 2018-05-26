@@ -5,6 +5,7 @@ open System.IO
 open FSharp.Data
 open DbContext
 open Helpers
+open System
 
 [<Literal>]
 let sitesListFilePath = __SOURCE_DIRECTORY__ + "\\SitesList.txt"
@@ -36,9 +37,18 @@ let seedSites (connection : SQLiteConnection) =
                                         sitesCommand.ExecuteNonQuery() |> ignore)
 
 let seedWords (bodies : (int * HtmlNode)[], connection : SQLiteConnection) =
-    bodies |> Seq.iter(fun x ->
+    bodies 
+        |> Array.iter(fun x ->
                             getAllWordsFromNode(snd(x)) 
                                 |> Seq.iter(fun y -> insertWord(fst(y), snd(y), fst(x), connection)))
-                            
+
+let seedPageRanks (bodies : (int * string * HtmlNode)[], alpha : float, depth : int, connection : SQLiteConnection) =
+    bodies 
+        |> Array.map(fun x -> 
+                            let id, url, node = x
+                            Console.WriteLine("Attempting to calculate Page Rank for " + url + "...")
+                            (id, getPageRank(url, getNetMap((url, node), depth), alpha)))
+        |> Array.iter(fun x -> updatePageRank(fst(x), snd(x), connection))
+            
                             
                             
