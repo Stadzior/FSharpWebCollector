@@ -6,11 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Migration.fs" />
     <Content Include="SitesList.txt" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
-  <ItemGroup />
 
   <ItemGroup>
     <PackageReference Include="SQLProvider" Version="1.1.42" />

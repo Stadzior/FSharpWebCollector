@@ -2,32 +2,29 @@
 
 open System
 open System.Data.SQLite
-open System.IO
+open Migration
 
 [<Literal>]
 let dbName = "MyIndexedWebDb"
 [<Literal>]
 let dbFilePath = __SOURCE_DIRECTORY__ + "\\" + dbName + ".db"
-[<Literal>]
-let sitesListFilePath = __SOURCE_DIRECTORY__ + "\\SitesList.txt"
 
 [<Literal>]
 let connectionString = "Data Source=" + dbFilePath + ";Version=3;foreign keys=true"   
 
-let initialMigration (connection : SQLiteConnection) =     
-    let sitesQuery = "create table sites (Id integer PRIMARY KEY, PageRank real NOT NULL);"
-    let sitesCommand = new SQLiteCommand(sitesQuery, connection)
-    sitesCommand.ExecuteNonQuery() |> ignore
-    let wordsQuery = "create table words (Id integer PRIMARY KEY, Word text NOT NULL, WordCount integer Check(WordCount>0), siteId integer, FOREIGN KEY(siteId) REFERENCES sites(Id));"
-    let wordsCommand = new SQLiteCommand(wordsQuery, connection)    
-    wordsCommand.ExecuteNonQuery() |> ignore
-    let checkIfTablesExistsQuery = "SELECT name FROM sqlite_master WHERE type='table';"
-    let checkIfTablesExistsCommand = new SQLiteCommand(checkIfTablesExistsQuery, connection)
-    let reader = checkIfTablesExistsCommand.ExecuteReader();
-    let output = seq { while reader.Read() do yield reader.["name"] }
-    let sitesExists = output |> Seq.exists(fun x -> x.Equals("sites"))    
-    let wordsExists = output |> Seq.exists(fun x -> x.Equals("words"))
-    sitesExists && wordsExists
+let displayAllSites (connection : SQLiteConnection) =     
+    let query = "SELECT * FROM sites;"
+    let command = new SQLiteCommand(query, connection)
+    let reader = command.ExecuteReader();
+    let output = seq { while reader.Read() do yield (reader.["Id"], reader.["Url"], reader.["PageRank"]) }
+    output |> Seq.iter(fun x -> Console.WriteLine(x))
+
+let displayAllWords (connection : SQLiteConnection) =     
+    let query = "SELECT w.Id, w.Word, w.WordCount, s.Url FROM words w inner join sites s on w.siteId = s.Id;"
+    let command = new SQLiteCommand(query, connection)
+    let reader = command.ExecuteReader();
+    let output = seq { while reader.Read() do yield (reader.["Id"], reader.["Word"], reader.["WordCount"], reader.["Url"]) }
+    output |> Seq.iter(fun x -> Console.WriteLine(x))
 
 [<EntryPoint>]
 let main argv =
@@ -43,12 +40,10 @@ let main argv =
                 with
                     | :? FormatException as _ex -> 0 
         if pageRankDepth > 0 then
-            let sitesToIndex = seq {
-                use sr = new StreamReader(sitesListFilePath)
-                while not sr.EndOfStream do
-                    yield sr.ReadLine()
-            }    
-            sitesToIndex |> Seq.iter(fun x -> Console.WriteLine(x))
+            seedSites(connection)
+            displayAllSites(connection)
+            seedWords(connection)
+            displayAllWords(connection)
             Console.ReadKey()     
             1   
         else
