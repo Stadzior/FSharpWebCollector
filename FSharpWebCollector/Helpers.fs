@@ -11,15 +11,15 @@ open System.Text.RegularExpressions
 // e.g. aaaa-aaa'a
 let wordPattern = "(^[\w]$)|(^[\w](\w|\-|\')*[\w]$)"
 
-let fullUrlPattern = "(?i)^((https|http)://)?(www\.)?\w[\w\-\,\„\”\!\?\&\=\%]*(\.\w([\-\w\,\„\”\!\?\&\=\%]*\w)*)*\.\w{2,3}[\/]?$"
-let softFullUrlPattern = "(?i)((https|http)://)?(www\.)?\w[\w\-\,\„\”\!\?\&\=\%]*(\.\w([\-\w\,\„\”\!\?\&\=\%]*\w)*)*\.\w{2,3}[\/]?"
+let fullUrlPattern = "(?i)^((https|http)://)?(www\.)?\w[\w\-\,\„\”\!\?\&\=\%\;]*(\.\w([\-\w\,\„\”\!\?\&\=\%\;]*\w)*)*\.\w{2,3}[\/]?$"
+let softFullUrlPattern = "(?i)((https|http)://)?(www\.)?\w[\w\-\,\„\”\!\?\&\=\%\;]*(\.\w([\-\w\,\„\”\!\?\&\=\%\;]*\w)*)*\.\w{2,3}[\/]?"
 
 // e.g. /aaa/bb/c-c/ddd.html
-let relativeUrlPattern = "(?i)^([\/]?[\w\-\,\„\”\!\?\&\=\%]+)+(\.[\w]{1,4})?[\/]?$"
+let relativeUrlPattern = "(?i)^([\/]?[\w\-\,\„\”\!\?\&\=\%\;]+)+(\.[\w]{1,4})?[\/]?$"
 // e.g. aa.com, aa-aa.com.pl, aaaaaaa.co.uk
-let baseHostUrlPattern = "(?i)^[\w\-\,\„\”\!\?\&\=\%]*(\.\w([\-\w\,\„\”\!\?\&\=\%]*\w)*)*\.\w{2,3}[\/]?$"
+let baseHostUrlPattern = "(?i)^[\w\-\,\„\”\!\?\&\=\%\;]*(\.\w([\-\w\,\„\”\!\?\&\=\%\;]*\w)*)*\.\w{2,3}[\/]?$"
 // same as above but removes "exact match" constraint
-let softBaseHostUrlPattern = "(?i)[\w\-\,\„\”\!\?\&\=\%]*(\.\w([\-\w\,\„\”\!\?\&\=\%]*\w)*)*\.\w{2,3}[\/]?"
+let softBaseHostUrlPattern = "(?i)[\w\-\,\„\”\!\?\&\=\%\;]*(\.\w([\-\w\,\„\”\!\?\&\=\%\;]*\w)*)*\.\w{2,3}[\/]?"
 
 type Microsoft.FSharp.Control.Async with
     static member AwaitTask (t : Task<'T>, timeout : int) =
@@ -145,13 +145,14 @@ let getLinksFromNode (includeExternal : bool, includeInternal : bool, urlNodeTup
         |> Seq.choose(fun x -> 
             x.TryGetAttribute("href")
                 |> Option.map(fun x -> x.Value()))
+        |> Seq.filter (fun x -> not(["%";",";";";"!"] |> Seq.exists(fun y -> x.Contains(y))))
         |> Seq.filter (fun x ->
                             let asyncMatching = executeWithTimeout(async {
                                 let relativeMatch = Regex.IsMatch(x, relativeUrlPattern)
                                 let fullMatch = Regex.Match(fst(urlNodeTuple), fullUrlPattern)
                                 let softMatch = Regex.Match(x, softFullUrlPattern)
                                 return (includeExternal || relativeMatch || fullMatch.Value.Equals(softMatch.Value))
-                            }, 3000)
+                            }, 1000)
                             if (asyncMatching).IsNone then                 
                                 Console.WriteLine(x + " matching timed out.")
                                 false
@@ -159,9 +160,18 @@ let getLinksFromNode (includeExternal : bool, includeInternal : bool, urlNodeTup
                                 asyncMatching.Value                           
                                 )
         |> Seq.filter (fun x ->
-                (includeInternal ||
-                    not(Regex.IsMatch(x, relativeUrlPattern)) ||
-                    not(Regex.Match(fst(urlNodeTuple), fullUrlPattern).Value.Equals(Regex.Match(x, softFullUrlPattern).Value))))
+                            let asyncMatching = executeWithTimeout(async {
+                                let relativeMatch = Regex.IsMatch(x, relativeUrlPattern)
+                                let fullMatch = Regex.Match(fst(urlNodeTuple), fullUrlPattern)
+                                let softMatch = Regex.Match(x, softFullUrlPattern)
+                                return (includeInternal || not(relativeMatch) || not(fullMatch.Value.Equals(softMatch.Value)))
+                            }, 1000)
+                            if (asyncMatching).IsNone then                 
+                                Console.WriteLine(x + " matching timed out.")
+                                false
+                            else
+                                asyncMatching.Value                           
+                                )
         |> Seq.distinct
 
 let rec getNetMap(startingPoint : string * HtmlNode, depth : int) =

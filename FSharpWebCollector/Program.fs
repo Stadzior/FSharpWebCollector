@@ -6,6 +6,7 @@ open Migration
 open DbContext
 open FSharp.Data
 open System.IO
+open System.Diagnostics
 
 [<Literal>]
 let dbName = "MyIndexedWebDb"
@@ -17,8 +18,8 @@ let connectionString = "Data Source=" + dbFilePath + ";Version=3;foreign keys=tr
 
 [<EntryPoint>]
 let main argv =
-    System.IO.File.Delete(dbFilePath)
-    SQLiteConnection.CreateFile(dbFilePath)
+    if not(System.IO.File.Exists(dbFilePath)) then
+        SQLiteConnection.CreateFile(dbFilePath)
     use connection = new SQLiteConnection(connectionString)
     connection.Open()
     if initialMigration(connection) then
@@ -36,6 +37,8 @@ let main argv =
                     | :? Exception as _ex -> 0.0
             if alpha > 0.0 && alpha < 1.0 then
                 Console.WriteLine("Selected depth for page rank: " + depth.ToString())  
+                let stopWatch = new Stopwatch()
+                stopWatch.Start()
                 seedSites(connection)    
                 Console.WriteLine("Finished sites seed.") 
                 let urls = getAllSites(connection) |> Seq.map(fun x -> 
@@ -65,10 +68,12 @@ let main argv =
                     
                 seedWords(reachableBodies, connection)
                 Console.WriteLine("Finished words seed.")
-                seedPageRanks(reachableBodies, 0.85, depth, connection)                   
+                seedPageRanks(reachableBodies, 0.85, depth, false, connection)                   
                 Console.WriteLine("Finished Page Rank calculations.")
                 File.AppendAllLines(__SOURCE_DIRECTORY__ + "\\sitesOutput.txt", getAllSites(connection) |> Seq.map(fun x -> x.ToString()))
                 File.AppendAllLines(__SOURCE_DIRECTORY__ + "\\wordsOutput.txt", getAllWords(connection) |> Seq.map(fun x -> x.ToString()))
+                stopWatch.Stop()
+                File.AppendAllLines(__SOURCE_DIRECTORY__ + "\\metrics.txt", ["Execution time: " + stopWatch.Elapsed.Hours.ToString() + "h " + stopWatch.Elapsed.Minutes.ToString() + "m " + stopWatch.Elapsed.Seconds.ToString() + "s"])
                 Console.ReadKey()        
                 1  
             else

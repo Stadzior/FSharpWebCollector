@@ -11,10 +11,10 @@ open System
 let sitesListFilePath = __SOURCE_DIRECTORY__ + "\\SitesList.txt"
 
 let initialMigration (connection : SQLiteConnection) =     
-    let sitesQuery = "create table sites (Id integer PRIMARY KEY AUTOINCREMENT, Url text NOT NULL, PageRank real);"
+    let sitesQuery = "create table if not exists sites (Id integer PRIMARY KEY AUTOINCREMENT, Url text NOT NULL, PageRank real);"
     let sitesCommand = new SQLiteCommand(sitesQuery, connection)
     sitesCommand.ExecuteNonQuery() |> ignore
-    let wordsQuery = "create table words (Id integer PRIMARY KEY AUTOINCREMENT, Word text NOT NULL, WordCount integer Check(WordCount>0), siteId integer, FOREIGN KEY(siteId) REFERENCES sites(Id));"
+    let wordsQuery = "create table if not exists words (Id integer PRIMARY KEY AUTOINCREMENT, Word text NOT NULL, WordCount integer Check(WordCount>0), siteId integer, FOREIGN KEY(siteId) REFERENCES sites(Id));"
     let wordsCommand = new SQLiteCommand(wordsQuery, connection)    
     wordsCommand.ExecuteNonQuery() |> ignore
     let checkIfTablesExistsQuery = "SELECT name FROM sqlite_master WHERE type='table';"
@@ -31,26 +31,23 @@ let seedSites (connection : SQLiteConnection) =
                 while not sr.EndOfStream do
                     yield sr.ReadLine()
             }    
-        sitesToIndex |> Seq.iter(fun x ->                                             
-                                        let sitesQuery = "insert into sites (url) values ('" + x + "');"
-                                        let sitesCommand = new SQLiteCommand(sitesQuery, connection)
-                                        sitesCommand.ExecuteNonQuery() |> ignore)
+        sitesToIndex |> Seq.iter(fun x -> insertSite(x, connection))
 
 let seedWords (bodies : (int * string * HtmlNode)[], connection : SQLiteConnection) =
     bodies 
-        |> Array.iter(fun x ->
+        |> Array.Parallel.iter(fun x ->
                             let id, url, node = x
                             Console.WriteLine("Attempting to gather words from " + url + "...")
                             getAllWordsFromNode(node) 
                                 |> Seq.iter(fun y -> insertWord(fst(y), snd(y), id, connection)))
 
-let seedPageRanks (bodies : (int * string * HtmlNode)[], alpha : float, depth : int, connection : SQLiteConnection) =
+let seedPageRanks (bodies : (int * string * HtmlNode)[], alpha : float, depth : int, refreshAlreadyRankedOnes : bool, connection : SQLiteConnection) =
     bodies 
-        |> Array.map(fun x -> 
+        |> Array.Parallel.iter(fun x -> 
                             let id, url, node = x
                             Console.WriteLine("Attempting to calculate Page Rank for " + url + "...")
-                            (id, getPageRank(url, getNetMap((url, node), depth), alpha)))
-        |> Array.iter(fun x -> updatePageRank(fst(x), snd(x), connection))
+                            if refreshAlreadyRankedOnes || not(isPageRankAlreadyCalculated(id, connection)) then
+                                updatePageRank(id, getPageRank(url, getNetMap((url, node), depth), alpha), connection))
             
                             
                             
